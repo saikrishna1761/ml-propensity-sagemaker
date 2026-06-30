@@ -10,3 +10,5 @@ scikit-learn
 ipykernel
 jupyter
 pandera
+pytest
+ruff

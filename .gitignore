@@ -35,6 +35,7 @@ standalone_admin_password.txt
 
 # Plan documents
 *.docx
+*.pdf
 AWSCLIV2.pkg
 
 # Local config with real AWS details
