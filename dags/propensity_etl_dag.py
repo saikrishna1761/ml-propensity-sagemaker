@@ -35,4 +35,9 @@ with DAG(
         bash_command="cd /opt/airflow && python features/feature_engineering.py",
     )
 
-    extract_load >> validate_raw >> feature_engineering
+    feature_store_ingest = BashOperator(
+        task_id="feature_store_ingest",
+        bash_command="cd /opt/airflow && python features/feature_store.py",
+    )
+
+    extract_load >> validate_raw >> feature_engineering >> feature_store_ingest
