@@ -57,7 +57,7 @@ def main():
     print("Submitting training job...")
     estimator.fit({"train": train_uri})
 
-    print(f"\nTraining complete.")
+    print("\nTraining complete.")
     print(f"Model artifact: {estimator.model_data}")
 
 

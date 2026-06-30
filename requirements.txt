@@ -12,3 +12,4 @@ jupyter
 pandera
 pytest
 ruff
+pre-commit

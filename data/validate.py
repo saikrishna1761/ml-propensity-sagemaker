@@ -2,7 +2,6 @@ import boto3
 import yaml
 import io
 import pandas as pd
-import pandera.pandas as pa
 from pandera.pandas import Column, DataFrameSchema, Check
 
 CONFIG_PATH = "config.yaml"
