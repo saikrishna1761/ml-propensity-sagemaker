@@ -1,0 +1,22 @@
+aws:
+  region: ap-south-1
+  s3_bucket: your-s3-bucket-name
+  sagemaker_role_arn: arn:aws:iam::YOUR_ACCOUNT_ID:role/your-sagemaker-role
+
+s3:
+  raw_prefix: raw
+  features_prefix: features
+  models_prefix: models
+
+postgres:
+  secret_name: ml/postgres
+
+snapshot_date: "2026-06-01"
+
+training:
+  instance_type: ml.m5.xlarge
+  instance_count: 1
+
+serving:
+  instance_type: ml.m5.large
+  endpoint_name: propensity-v1

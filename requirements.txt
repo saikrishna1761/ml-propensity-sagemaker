@@ -1,0 +1,12 @@
+boto3
+sagemaker<3
+pandas
+pyarrow
+psycopg2-binary
+faker
+numpy
+xgboost
+scikit-learn
+ipykernel
+jupyter
+pandera
