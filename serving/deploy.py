@@ -11,26 +11,49 @@ def load_config():
         return yaml.safe_load(f)
 
 
-def get_latest_model_artifact(bucket, models_prefix, region):
-    s3 = boto3.client("s3", region_name=region)
-    response = s3.list_objects_v2(Bucket=bucket, Prefix=models_prefix + "/")
-    objects = [o for o in response.get("Contents", []) if o["Key"].endswith("model.tar.gz")]
-    if not objects:
-        raise FileNotFoundError(f"No model.tar.gz found in s3://{bucket}/{models_prefix}/")
-    latest = sorted(objects, key=lambda o: o["LastModified"], reverse=True)[0]
-    return f"s3://{bucket}/{latest['Key']}"
+MODEL_PACKAGE_GROUP = "propensity-model"
+
+
+def get_approved_model_from_registry(sm_client):
+    response = sm_client.list_model_packages(
+        ModelPackageGroupName=MODEL_PACKAGE_GROUP,
+        ModelApprovalStatus="Approved",
+        SortBy="CreationTime",
+        SortOrder="Descending",
+        MaxResults=1,
+    )
+    packages = response.get("ModelPackageSummaryList", [])
+    if not packages:
+        raise RuntimeError(
+            f"No Approved model found in registry group '{MODEL_PACKAGE_GROUP}'. "
+            "Run register_model.py and approve it first."
+        )
+    arn = packages[0]["ModelPackageArn"]
+    version = packages[0]["ModelPackageVersion"]
+
+    detail = sm_client.describe_model_package(ModelPackageName=arn)
+    model_data_url = detail["InferenceSpecification"]["Containers"][0]["ModelDataUrl"]
+    metadata = detail.get("CustomerMetadataProperties", {})
+
+    print(f"Found Approved model: version={version}")
+    print(f"  ARN:     {arn}")
+    print(f"  AUC:     {metadata.get('auc_roc', 'N/A')}")
+    print(f"  Git SHA: {metadata.get('git_sha', 'N/A')}")
+    print(f"  Dataset: {metadata.get('dataset_version', 'N/A')}")
+    print(f"  Model:   {model_data_url}")
+
+    return model_data_url
 
 
 def main():
     config = load_config()
     region = config["aws"]["region"]
-    bucket = config["aws"]["s3_bucket"]
     role = config["aws"]["sagemaker_role_arn"]
-    models_prefix = config["s3"]["models_prefix"]
     instance_type = config["serving"]["instance_type"]
     endpoint_name = config["serving"]["endpoint_name"]
 
     boto_session = boto3.Session(region_name=region)
+    sm_client = boto3.client("sagemaker", region_name=region)
 
     if instance_type == "local":
         from sagemaker.local import LocalSession
@@ -39,9 +62,15 @@ def main():
     else:
         sess = sagemaker.Session(boto_session=boto_session)
 
-    print(f"Looking for latest model artifact in s3://{bucket}/{models_prefix}/...")
-    model_artifact = get_latest_model_artifact(bucket, models_prefix, region)
-    print(f"Model artifact: {model_artifact}")
+    print(f"Fetching latest Approved model from registry: {MODEL_PACKAGE_GROUP}...")
+    model_artifact = get_approved_model_from_registry(sm_client)
+
+    # Delete existing endpoint config if present so we can redeploy cleanly
+    try:
+        sm_client.delete_endpoint_config(EndpointConfigName=endpoint_name)
+        print(f"Deleted existing endpoint config: {endpoint_name}")
+    except sm_client.exceptions.ClientError:
+        pass
 
     model = XGBoostModel(
         model_data=model_artifact,
