@@ -4,6 +4,10 @@ import json
 import subprocess
 import pandas as pd
 import xgboost as xgb
+import shap
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, average_precision_score, recall_score, f1_score, precision_score
 import joblib
@@ -135,6 +139,24 @@ def train(args):
         mlflow.log_metrics(metrics)
         mlflow.xgboost.log_model(model, name="model")
 
+        print("Computing SHAP values...")
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_val)
+
+        shap.summary_plot(shap_values, X_val, show=False)
+        shap_plot_path = os.path.join(args.model_dir, "shap_summary.png")
+        os.makedirs(args.model_dir, exist_ok=True)
+        plt.savefig(shap_plot_path, bbox_inches="tight", dpi=150)
+        plt.close()
+        mlflow.log_artifact(shap_plot_path, artifact_path="shap")
+        print(f"SHAP summary saved to {shap_plot_path}")
+
+        feature_importance = dict(zip(FEATURE_COLS, abs(shap_values).mean(axis=0).tolist()))
+        print("Feature importances (mean |SHAP|):")
+        for feat, imp in sorted(feature_importance.items(), key=lambda x: -x[1]):
+            print(f"  {feat}: {imp:.4f}")
+        mlflow.log_metrics({f"shap_{k}": round(v, 4) for k, v in feature_importance.items()})
+
         # Also log to SageMaker Experiments if running inside a training job
         if sm_run:
             for k, v in params.items():
@@ -143,8 +165,6 @@ def train(args):
                 sm_run.log_metric(k, v)
             for k, v in tags.items():
                 sm_run.log_parameter(k, v)
-
-        os.makedirs(args.model_dir, exist_ok=True)
 
         with open(os.path.join(args.model_dir, "metrics.json"), "w") as f:
             json.dump(metrics, f, indent=2)
