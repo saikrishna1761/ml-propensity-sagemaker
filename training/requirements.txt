@@ -1,2 +1,2 @@
 mlflow
-shap
+shap==0.44.1
