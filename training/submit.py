@@ -51,6 +51,9 @@ def main():
             "colsample-bytree": 0.8,
             "scale-pos-weight": 2.5,
         },
+        environment={
+            "SNAPSHOT_DATE": snapshot_date,
+        },
         output_path=f"s3://{bucket}/models/",
     )
 
