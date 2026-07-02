@@ -41,3 +41,10 @@ AWSCLIV2.pkg
 
 # Local config with real AWS details
 config.yaml
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfplan
+infra/crash.log
